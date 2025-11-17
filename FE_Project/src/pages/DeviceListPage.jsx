@@ -1,20 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from '../components/Modal';
 
-const initialMockDevices = [
-  { id: 'dht11-01', name: 'Cảm biến Phòng khách', type: 'DHT11', status: 'Online' },
-  { id: 'esp32-cam-01', name: 'Camera Cửa trước', type: 'ESP32-CAM', status: 'Online' },
-  { id: 'relay-01', name: 'Công tắc Đèn ngủ', type: 'Relay', status: 'Offline' },
-  { id: 'dht11-02', name: 'Cảm biến Nhà kho', type: 'DHT11', status: 'Online' },
-];
-
 function DeviceListPage() {
-  const [devices, setDevices] = useState(initialMockDevices);
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDevice, setNewDevice] = useState({ name: '', type: '' });
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false); // State mới để quản lý chế độ xóa
+
+  useEffect(() => {
+    fetch('/api/devices')
+      .then(res => res.json())
+      .then(data => {
+        setDevices(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch devices:", err);
+        setLoading(false);
+      });
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -52,6 +59,10 @@ function DeviceListPage() {
     setIsDeleteMode(false);
     setSelectedDevices([]);
   };
+
+  if (loading) {
+    return <div>Loading devices...</div>;
+  }
 
   return (
     <div className="main-content">
