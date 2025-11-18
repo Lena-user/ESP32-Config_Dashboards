@@ -1,16 +1,27 @@
-// filepath: c:\Users\Admin\Documents\ESP32-Config_Dashboards\BE-project\index.js
+// index.js
 const express = require('express');
-const cors = require('cors'); // <-- 1. Thêm dòng này
-const deviceRoutes = require('./routes/deviceRoutes');
+const db = require('./database.js'); // Import db (để đảm bảo kết nối được khởi tạo)
+const deviceRoutes = require('./routes/deviceRoutes'); // Import routes của bro
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3000; // Server sẽ chạy ở cổng 3000
 
-app.use(cors()); // <-- 2. Thêm dòng này để cho phép tất cả các yêu cầu
-app.use(express.json());
+// Middleware quan trọng:
+// Giúp Express hiểu được dữ liệu JSON từ req.body
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true }));
 
+// --- ĐỊNH NGHĨA ROUTES CHÍNH ---
+// Bất kỳ request nào bắt đầu bằng "/api/devices"
+// sẽ được chuyển cho `deviceRoutes` xử lý
 app.use('/api/devices', deviceRoutes);
 
+// Route cơ bản để kiểm tra server
+app.get('/', (req, res) => {
+  res.send('Server BE đang chạy ngon!');
+});
+
+// Khởi động server
 app.listen(PORT, () => {
-  console.log(`Backend server đang chạy tại http://localhost:${PORT}`);
+  console.log(`Server đang chạy tại http://localhost:${PORT}`);
 });

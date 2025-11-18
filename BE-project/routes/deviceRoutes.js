@@ -1,23 +1,13 @@
+// routes/deviceRoutes.js
 const express = require('express');
 const router = express.Router();
+
+// 1. Import controller
 const deviceController = require('../controllers/deviceController');
 
-// GET /api/devices -> Lấy tất cả thiết bị
-router.get('/', deviceController.getAllDevices);
+// 2. Chỉ đăng ký route này
+// URL sẽ là: POST /api/devices/thingsboard
+router.post('/thingsboard', deviceController.createDeviceOnThingsBoard);
 
-// POST /api/devices -> Tạo thiết bị mới
-router.post('/', deviceController.createDevice);
-
-// GET /api/devices/:id -> Lấy chi tiết thiết bị (attributes)
-router.get('/:id', deviceController.getDeviceById);
-
-// DELETE /api/devices/:id -> Xóa thiết bị
-router.delete('/:id', deviceController.deleteDevice);
-
-// GET /api/devices/:id/telemetry -> Lấy dữ liệu telemetry
-router.get('/:id/telemetry', deviceController.getDeviceTelemetry);
-
-// POST /api/devices/:id/config -> Cập nhật cấu hình
-router.post('/:id/config', deviceController.updateDeviceConfig);
 
 module.exports = router;
