@@ -1,26 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Thêm useEffect
 import { Link } from 'react-router-dom';
 import Modal from '../components/Modal';
 
 function DeviceListPage() {
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [devices, setDevices] = useState([]); // Bỏ initialMockDevices, khởi tạo mảng rỗng
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDevice, setNewDevice] = useState({ name: '', type: '' });
   const [selectedDevices, setSelectedDevices] = useState([]);
-  const [isDeleteMode, setIsDeleteMode] = useState(false); // State mới để quản lý chế độ xóa
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Thêm trạng thái loading
 
-  useEffect(() => {
-    fetch('/api/devices')
-      .then(res => res.json())
-      .then(data => {
+  // 1. Hàm lấy danh sách thiết bị từ API
+  const fetchDevices = async () => {
+    try {
+      const response = await fetch('/api/devices');
+      if (response.ok) {
+        const data = await response.json();
         setDevices(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to fetch devices:", err);
-        setLoading(false);
-      });
+      } else {
+        console.error("Lỗi khi tải danh sách thiết bị");
+      }
+    } catch (error) {
+      console.error("Lỗi kết nối:", error);
+    }
+  };
+
+  // Gọi API khi trang vừa load
+  useEffect(() => {
+    fetchDevices();
   }, []);
 
   const handleInputChange = (e) => {
@@ -28,12 +35,35 @@ function DeviceListPage() {
     setNewDevice(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddDevice = (e) => {
+  // 2. Hàm Thêm thiết bị (Gọi API ThingsBoard)
+  const handleAddDevice = async (e) => {
     e.preventDefault();
-    const deviceToAdd = { ...newDevice, id: `new-device-${Date.now()}`, status: 'Online' };
-    setDevices(prev => [...prev, deviceToAdd]);
-    setIsModalOpen(false);
-    setNewDevice({ name: '', type: '' });
+    setIsLoading(true); // Bắt đầu loading
+    try {
+      const response = await fetch('/api/devices/thingsboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newDevice),
+      });
+
+      if (response.ok) {
+        // Nếu thành công, tải lại danh sách và đóng modal
+        await fetchDevices();
+        setIsModalOpen(false);
+        setNewDevice({ name: '', type: '' });
+        alert("Thêm thiết bị thành công!");
+      } else {
+        const errorData = await response.json();
+        alert(`Lỗi: ${errorData.error || 'Không thể thêm thiết bị'}`);
+      }
+    } catch (error) {
+      console.error("Lỗi:", error);
+      alert("Lỗi kết nối đến server");
+    } finally {
+      setIsLoading(false); // Kết thúc loading
+    }
   };
 
   const handleSelectDevice = (deviceId) => {
@@ -44,25 +74,37 @@ function DeviceListPage() {
     );
   };
 
-  // Hàm xác nhận xóa
-  const confirmDelete = () => {
-    // Bỏ qua hộp thoại xác nhận, xóa trực tiếp
-    setDevices(prevDevices =>
-      prevDevices.filter(device => !selectedDevices.includes(device.id))
-    );
-    setIsDeleteMode(false); // Thoát chế độ xóa
-    setSelectedDevices([]); // Reset lựa chọn
+  // 3. Hàm Xóa thiết bị (Gọi API Delete)
+  const confirmDelete = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa các thiết bị đã chọn?")) return;
+
+    setIsLoading(true);
+    try {
+      // Xóa từng thiết bị một (Backend của bạn API xóa theo từng ID)
+      // Sử dụng Promise.all để xóa song song cho nhanh
+      await Promise.all(selectedDevices.map(id => 
+        fetch(`/api/devices/${id}`, { method: 'DELETE' })
+      ));
+
+      // Sau khi xóa xong, tải lại danh sách
+      await fetchDevices();
+      
+      setIsDeleteMode(false);
+      setSelectedDevices([]);
+      alert("Đã xóa thành công!");
+
+    } catch (error) {
+      console.error("Lỗi khi xóa:", error);
+      alert("Có lỗi xảy ra khi xóa thiết bị.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Hàm hủy chế độ xóa
   const cancelDelete = () => {
     setIsDeleteMode(false);
     setSelectedDevices([]);
   };
-
-  if (loading) {
-    return <div>Loading devices...</div>;
-  }
 
   return (
     <div className="main-content">
@@ -70,17 +112,15 @@ function DeviceListPage() {
         <h1>Danh Sách Thiết Bị</h1>
         <div className="header-actions">
           {isDeleteMode ? (
-            // Các nút khi ở chế độ xóa
             <>
-              <button onClick={confirmDelete} className="confirm-delete-btn" disabled={selectedDevices.length === 0}>
-                Xác nhận xóa
+              <button onClick={confirmDelete} className="confirm-delete-btn" disabled={selectedDevices.length === 0 || isLoading}>
+                {isLoading ? 'Đang xóa...' : 'Xác nhận xóa'}
               </button>
-              <button onClick={cancelDelete} className="cancel-delete-btn">
+              <button onClick={cancelDelete} className="cancel-delete-btn" disabled={isLoading}>
                 Hủy
               </button>
             </>
           ) : (
-            // Các nút mặc định
             <>
               <button onClick={() => setIsModalOpen(true)} className="add-device-btn">
                 + Thêm thiết bị mới
@@ -92,11 +132,15 @@ function DeviceListPage() {
           )}
         </div>
       </div>
+      
       <div className="device-list">
+        {devices.length === 0 ? (
+            <p style={{textAlign: 'center', padding: '20px'}}>Chưa có thiết bị nào.</p>
+        ) : (
         <table>
           <thead>
             <tr>
-              {isDeleteMode && <th></th>} {/* Chỉ hiện cột checkbox khi ở chế độ xóa */}
+              {isDeleteMode && <th></th>}
               <th>Tên thiết bị</th>
               <th>Loại</th>
               <th>Trạng thái</th>
@@ -118,8 +162,8 @@ function DeviceListPage() {
                 <td>{device.name}</td>
                 <td>{device.type}</td>
                 <td>
-                  <span className={`status-dot ${device.status.toLowerCase()}`}></span>
-                  {device.status}
+                  <span className={`status-dot ${device.status ? device.status.toLowerCase() : 'offline'}`}></span>
+                  {device.status || 'Unknown'}
                 </td>
                 <td>
                   <Link to={`/devices/${device.id}`} className="action-link">
@@ -130,38 +174,56 @@ function DeviceListPage() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Thêm thiết bị mới">
-        <form onSubmit={handleAddDevice}>
-          <div className="form-group">
-            <label htmlFor="name">Tên thiết bị</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={newDevice.name}
-              onChange={handleInputChange}
-              required
-            />
+      {/* MODAL MỚI ĐƯỢC TÙY BIẾN */}
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            
+            {/* Header màu XANH với icon dấu CỘNG */}
+            <div className="modal-header-custom">
+              {/* Thay icon 💬 thành dấu + lớn */}
+              <h2><span style={{fontSize: '1.5rem', fontWeight: 'bold'}}>+</span> THÊM THIẾT BỊ</h2>
+              <button className="modal-close-btn-custom" onClick={() => setIsModalOpen(false)}>×</button>
+            </div>
+
+            <form onSubmit={handleAddDevice}>
+              <div className="modal-body-custom">
+                <div className="form-group">
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={newDevice.name}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Tên thiết bị"
+                  />
+                </div>
+                <div className="form-group">
+                  <input
+                    type="text"
+                    id="type"
+                    name="type"
+                    value={newDevice.type}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Loại thiết bị"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer-custom">
+                <button type="submit" className="btn-submit-custom" disabled={isLoading}>
+                    {isLoading ? 'ĐANG XỬ LÝ...' : 'THÊM'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div className="form-group">
-            <label htmlFor="type">Loại thiết bị</label>
-            <input
-              type="text"
-              id="type"
-              name="type"
-              value={newDevice.type}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Hủy</button>
-            <button type="submit" className="btn btn-primary">Thêm</button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }

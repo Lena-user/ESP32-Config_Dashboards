@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import './index.css'; // CSS mặc định của Vite
+import './index.css'; // <--- KHÔNG CÓ DÒNG NÀY LÀ WEB XẤU
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
