@@ -70,39 +70,39 @@ uint16_t readLightRawFiltered() {
 }
 
 // -------------------- RPC Callbacks --------------------
-RPC_Response setWifiSSID(const RPC_Data &data) {
-    if (data.isNull()) return RPC_Response("setWifiSSID", "Invalid data");
-    wifi_ssid = data.as<String>();
-    wifiReconnectRequested = true;
-    attributesChanged = true;
-    Serial.printf("[ATTR] RPC requested new SSID (deferred reconnect)\n");
-    return RPC_Response("setWifiSSID", wifi_ssid.c_str());
-}
+// RPC_Response setWifiSSID(const RPC_Data &data) {
+//     if (data.isNull()) return RPC_Response("setWifiSSID", "Invalid data");
+//     wifi_ssid = data.as<String>();
+//     wifiReconnectRequested = true;
+//     attributesChanged = true;
+//     Serial.printf("[ATTR] RPC requested new SSID (deferred reconnect)\n");
+//     return RPC_Response("setWifiSSID", wifi_ssid.c_str());
+// }
 
-RPC_Response setWifiPass(const RPC_Data &data) {
-    if (data.isNull()) return RPC_Response("setWifiPass", "Invalid data");
-    wifi_pass = data.as<String>();
-    wifiReconnectRequested = true;
-    attributesChanged = true;
-    Serial.printf("[ATTR] RPC requested new WiFi password (deferred reconnect)\n");
-    return RPC_Response("setWifiPass", wifi_pass.c_str());
-}
+// RPC_Response setWifiPass(const RPC_Data &data) {
+//     if (data.isNull()) return RPC_Response("setWifiPass", "Invalid data");
+//     wifi_pass = data.as<String>();
+//     wifiReconnectRequested = true;
+//     attributesChanged = true;
+//     Serial.printf("[ATTR] RPC requested new WiFi password (deferred reconnect)\n");
+//     return RPC_Response("setWifiPass", wifi_pass.c_str());
+// }
 
-RPC_Response setSendInterval(const RPC_Data &data) {
-    if (data.isNull()) return RPC_Response("setSendInterval", "Invalid data");
-    int interval = data.as<int>();
-    if (interval < 500 || interval > 60000) return RPC_Response("setSendInterval", "Invalid interval");
-    sendInterval = (uint16_t)interval;
-    attributesChanged = true;
-    Serial.printf("[ATTR] RPC set sendInterval = %u ms\n", sendInterval);
-    return RPC_Response("setSendInterval", sendInterval);
-}
+// RPC_Response setSendInterval(const RPC_Data &data) {
+//     if (data.isNull()) return RPC_Response("setSendInterval", "Invalid data");
+//     int interval = data.as<int>();
+//     if (interval < 500 || interval > 60000) return RPC_Response("setSendInterval", "Invalid interval");
+//     sendInterval = (uint16_t)interval;
+//     attributesChanged = true;
+//     Serial.printf("[ATTR] RPC set sendInterval = %u ms\n", sendInterval);
+//     return RPC_Response("setSendInterval", sendInterval);
+// }
 
-const std::array<RPC_Callback, 3U> callbacks = {
-    RPC_Callback{"setWifiSSID", setWifiSSID},
-    RPC_Callback{"setWifiPass", setWifiPass},
-    RPC_Callback{"setSendInterval", setSendInterval},
-};
+// const std::array<RPC_Callback, 3U> callbacks = {
+//     RPC_Callback{"setWifiSSID", setWifiSSID},
+//     RPC_Callback{"setWifiPass", setWifiPass},
+//     RPC_Callback{"setSendInterval", setSendInterval},
+// };
 
 // -------------------- Shared Attribute --------------------
 void processSharedAttributes(const Shared_Attribute_Data &data) {
@@ -237,12 +237,12 @@ void connectTB(void *parameter) {
             }
 
             if (tb.connected() && !tb_subscribed) {
-                tb.RPC_Unsubscribe();                
+                // tb.RPC_Unsubscribe();                
                 tb.Shared_Attributes_Unsubscribe(); 
-                Serial.println("[TB] Subscribing RPC and Shared Attributes...");
-                if (!tb.RPC_Subscribe(callbacks.cbegin(), callbacks.cend())) {
-                    Serial.println("[TB] RPC subscribe failed");
-                }
+                // Serial.println("[TB] Subscribing RPC and Shared Attributes...");
+                // if (!tb.RPC_Subscribe(callbacks.cbegin(), callbacks.cend())) {
+                //     Serial.println("[TB] RPC subscribe failed");
+                // }
                 if (!tb.Shared_Attributes_Subscribe(attributes_callback)) {
                     Serial.println("[TB] Shared attr subscribe failed");
                 }
