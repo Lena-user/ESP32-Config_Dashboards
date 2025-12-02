@@ -11,7 +11,8 @@
 //extern WebServer server;
 
 //extern bool isAPMode;
-
+extern String wifi_SSID;
+extern String wifi_PASS;
 
 
 

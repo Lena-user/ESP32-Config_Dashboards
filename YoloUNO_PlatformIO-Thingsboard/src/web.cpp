@@ -10,6 +10,9 @@ WebServer server(80);
 
 String ssid = "ESP32-YOUR NETWORK HERE!!!";
 String password = "12345678";
+String wifi_SSID = "";
+String wifi_PASS = "";
+
 
 unsigned long connect_start_ms = 0;
 bool connecting = false;
@@ -166,8 +169,8 @@ void handleSensors() {
 void handleSettings() { server.send(200, "text/html", settingsPage()); }
 
 void handleConnect() {
-  wifi_ssid = server.arg("ssid");
-  wifi_pass = server.arg("pass");
+  wifi_SSID = server.arg("ssid");
+  wifi_PASS = server.arg("pass");
   server.send(200, "text/plain", "Connecting....");
   isAPMode = false;
   connecting = true;
@@ -196,14 +199,14 @@ void startAP() {
 
 void connectToWiFi() {
   WiFi.mode(WIFI_STA);
-  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
+  WiFi.begin(wifi_SSID.c_str(), wifi_PASS.c_str());
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
   Serial.print("Connecting to: ");
-  Serial.println(wifi_ssid);
+  Serial.println(wifi_SSID);
   Serial.print("Password: ");
-  Serial.println(wifi_pass);
+  Serial.println(wifi_PASS);
 }
 
 // ========== Main task ==========

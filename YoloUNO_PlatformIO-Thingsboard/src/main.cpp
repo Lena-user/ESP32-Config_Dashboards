@@ -9,6 +9,7 @@
 #include <RPC_Response.h>
 #include <RPC_Request_Callback.h>
 #include <web.h>
+#include <global.h>
 
 #define LED_PIN 48
 #define SDA_PIN GPIO_NUM_11
@@ -35,6 +36,7 @@ volatile bool passUpdated = false;
 volatile uint16_t sendInterval = 2000U;
 volatile uint16_t lightBuf[FILTER_SAMPLES];
 volatile uint8_t lightIdx = 0;
+
 
 static bool tb_was_connected = false;
 static bool tb_subscribed = false;
@@ -69,47 +71,10 @@ uint16_t readLightRawFiltered() {
     return sum / count; 
 }
 
-// -------------------- RPC Callbacks --------------------
-// RPC_Response setWifiSSID(const RPC_Data &data) {
-//     if (data.isNull()) return RPC_Response("setWifiSSID", "Invalid data");
-//     wifi_ssid = data.as<String>();
-//     wifiReconnectRequested = true;
-//     attributesChanged = true;
-//     Serial.printf("[ATTR] RPC requested new SSID (deferred reconnect)\n");
-//     return RPC_Response("setWifiSSID", wifi_ssid.c_str());
-// }
-
-// RPC_Response setWifiPass(const RPC_Data &data) {
-//     if (data.isNull()) return RPC_Response("setWifiPass", "Invalid data");
-//     wifi_pass = data.as<String>();
-//     wifiReconnectRequested = true;
-//     attributesChanged = true;
-//     Serial.printf("[ATTR] RPC requested new WiFi password (deferred reconnect)\n");
-//     return RPC_Response("setWifiPass", wifi_pass.c_str());
-// }
-
-// RPC_Response setSendInterval(const RPC_Data &data) {
-//     if (data.isNull()) return RPC_Response("setSendInterval", "Invalid data");
-//     int interval = data.as<int>();
-//     if (interval < 500 || interval > 60000) return RPC_Response("setSendInterval", "Invalid interval");
-//     sendInterval = (uint16_t)interval;
-//     attributesChanged = true;
-//     Serial.printf("[ATTR] RPC set sendInterval = %u ms\n", sendInterval);
-//     return RPC_Response("setSendInterval", sendInterval);
-// }
-
-// const std::array<RPC_Callback, 3U> callbacks = {
-//     RPC_Callback{"setWifiSSID", setWifiSSID},
-//     RPC_Callback{"setWifiPass", setWifiPass},
-//     RPC_Callback{"setSendInterval", setSendInterval},
-// };
-
 // -------------------- Shared Attribute --------------------
 void processSharedAttributes(const Shared_Attribute_Data &data) {
-    // One log block per shared attribute update (no spam)
     Serial.println("\n[ATTR] Shared attribute update received:");
     for (auto it = data.begin(); it != data.end(); ++it) {
-        // it->key() is ArduinoJson::JsonString; safe to use c_str()
         const char *k = it->key().c_str();
         if (!k) continue;
         String key = String(k);
@@ -127,7 +92,7 @@ void processSharedAttributes(const Shared_Attribute_Data &data) {
             const char *v = it->value().as<const char *>();
             if (v) {
                 wifi_ssid = String(v);
-                ssidUpdated = true; // defer reconnect to wifi task
+                ssidUpdated = true;
                 Serial.printf("%s (deferred reconnect)\n", wifi_ssid.c_str());
             } else {
                 Serial.println("(null)");
@@ -136,7 +101,7 @@ void processSharedAttributes(const Shared_Attribute_Data &data) {
             const char *v = it->value().as<const char *>();
             if (v) {
                 wifi_pass = String(v);
-                passUpdated = true; // defer reconnect to wifi task
+                passUpdated = true;
                 Serial.printf("***** (password updated, hidden) (deferred reconnect)\n");
             } else {
                 Serial.println("(null)");
@@ -162,7 +127,12 @@ void processSharedAttributes(const Shared_Attribute_Data &data) {
             }
         }
         if (ssidUpdated && passUpdated) {
-            wifiReconnectRequested = true;
+            if (wifi_ssid != cur_SSID || wifi_pass != cur_PASS) {
+                wifiReconnectRequested = true;
+                Serial.println("[ATTR] WiFi config changed → trigger reconnect!");
+            } else {
+                Serial.println("[ATTR] WiFi config unchanged → skip reconnect");
+            }
             ssidUpdated = false;
             passUpdated = false;
         }
@@ -179,8 +149,6 @@ const Attribute_Request_Callback attribute_shared_request_callback(&processShare
 TaskHandle_t wifiTaskHandle, tbTaskHandle, taskTbLoopHandle, taskSendAttrHandle, DHT11TaskHandle, ASTaskHandle;
 
 void connectwf(void *parameter) {
-    static bool last_connected = false;
-
     while (1) {
         if (wifiReconnectRequested) {
             wifiReconnectRequested = false;
@@ -189,28 +157,18 @@ void connectwf(void *parameter) {
             WiFi.disconnect(true);
             WiFi.mode(WIFI_STA);
             WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
-
+            WiFi.persistent(true);
             uint32_t start = millis();
-            bool connected = false;
             while (millis() - start < 20000) {
                 if (WiFi.status() == WL_CONNECTED) {
-                    connected = true;
+                    cur_SSID = wifi_ssid;
+                    cur_PASS = wifi_pass;
                     break;
                 }
-                vTaskDelay(pdMS_TO_TICKS(500));
-            }
-
-            if (connected) {
-                if (!last_connected) {
-                    Serial.print("[WIFI] Connected successfully. IP: ");
-                    Serial.println(WiFi.localIP());
-                    last_connected = true;
+                else {
+                    Serial.printf("[ATTR] Invalid WiFi config : SSID=%s\n", wifi_ssid.c_str());
                 }
-                tb_was_connected = false;
-            } else {
-                last_connected = false;
-                Serial.println("[WIFI] Reconnect FAILED (invalid config?)");
-                Serial.println("WiFi connect failed! Back to AP.");
+                vTaskDelay(pdMS_TO_TICKS(500));
             }
         }
         vTaskDelay(pdMS_TO_TICKS(300));
@@ -236,13 +194,8 @@ void connectTB(void *parameter) {
                 tb.sendAttributeData("macAddress", WiFi.macAddress().c_str());
             }
 
-            if (tb.connected() && !tb_subscribed) {
-                // tb.RPC_Unsubscribe();                
+            if (tb.connected() && !tb_subscribed) {               
                 tb.Shared_Attributes_Unsubscribe(); 
-                // Serial.println("[TB] Subscribing RPC and Shared Attributes...");
-                // if (!tb.RPC_Subscribe(callbacks.cbegin(), callbacks.cend())) {
-                //     Serial.println("[TB] RPC subscribe failed");
-                // }
                 if (!tb.Shared_Attributes_Subscribe(attributes_callback)) {
                     Serial.println("[TB] Shared attr subscribe failed");
                 }
@@ -275,10 +228,11 @@ void taskSendAttributeData(void *param) {
         uint32_t now = millis();
         if (now - last >= 2000) {
             last = now;
-            if (tb.connected()) {
+            if (WiFi.status() == WL_CONNECTED && tb.connected()) {
                 tb.sendAttributeData("rssi", WiFi.RSSI());
                 tb.sendAttributeData("localIp", WiFi.localIP().toString().c_str());
-                tb.sendAttributeData("ssid", WiFi.SSID().c_str());
+                tb.sendAttributeData("ssid", cur_SSID.c_str());
+                tb.sendAttributeData("pass", cur_PASS.c_str());               
             }
         }
         vTaskDelay(pdMS_TO_TICKS(200));
@@ -302,7 +256,7 @@ void taskDHT11Sensor(void *parameter) {
                 Serial.printf("[DHT] Temp: %.2f°C, Hum: %.2f%%\n", temperature, humidity);
                 glob_temperature = temperature;
                 glob_humidity = humidity;
-                if (tb.connected()) {
+                if (WiFi.status() == WL_CONNECTED && tb.connected()) {
                     tb.sendTelemetryData("temperature", temperature);
                     tb.sendTelemetryData("humidity", humidity);
                 }
