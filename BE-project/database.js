@@ -36,6 +36,33 @@ function initDb() {
             // console.log("Bảng devices đã sẵn sàng.");
         }
     });
+
+    // THÊM BẢNG USERS
+    const sqlUsers = `
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            password TEXT
+        )
+    `;
+
+    db.run(sqlUsers, (err) => {
+        if (err) {
+            console.error("Lỗi tạo bảng users:", err);
+        } else {
+            // --- TẠO TÀI KHOẢN MẶC ĐỊNH (SEEDING) ---
+            const checkSql = "SELECT count(*) as count FROM users";
+            db.get(checkSql, [], (err, row) => {
+                if (row && row.count === 0) {
+                    const insertAdmin = "INSERT INTO users (email, password) VALUES (?, ?)";
+                    // Tài khoản: admin@iot.com / Mật khẩu: 123456
+                    db.run(insertAdmin, ["admin@iot.com", "123456"], (err) => {
+                        if (!err) console.log("--> Đã tạo tài khoản mặc định: admin@iot.com / 123456");
+                    });
+                }
+            });
+        }
+    });
 }
 
 module.exports = db;

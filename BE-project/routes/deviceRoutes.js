@@ -26,4 +26,7 @@ router.post('/:id/config', deviceController.updateDeviceConfig);
 // 7. Route lấy Telemetry (MỚI)
 router.get('/:id/telemetry', deviceController.getDeviceTelemetry);
 
+// 8. Route Đồng bộ (MỚI)
+router.post('/sync', deviceController.syncDevices);
+
 module.exports = router;

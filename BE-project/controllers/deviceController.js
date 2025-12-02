@@ -268,6 +268,53 @@ const getDeviceTelemetry = async (req, res) => {
     }
 };
 
+// --- 8. ĐỒNG BỘ THIẾT BỊ TỪ THINGSBOARD (MỚI) ---
+const syncDevices = async (req, res) => {
+    try {
+        // 1. Lấy Token Admin
+        const jwtToken = await getThingsBoardToken();
+        if (!jwtToken) return res.status(500).json({ error: "Lỗi kết nối ThingsBoard" });
+
+        // 2. Lấy danh sách thiết bị từ Tenant (Lấy tối đa 100 thiết bị)
+        const tbResponse = await axios.get(
+            `${TB_SERVER_URL}/api/tenant/devices?pageSize=100&page=0`,
+            { headers: { 'X-Authorization': `Bearer ${jwtToken}` } }
+        );
+
+        const tbDevices = tbResponse.data.data; // Mảng thiết bị từ TB
+        let syncedCount = 0;
+
+        // 3. Duyệt qua từng thiết bị và lưu vào DB nếu chưa có
+        for (const tbDev of tbDevices) {
+            // Kiểm tra xem DB đã có thiết bị này chưa (dựa vào tb_device_id)
+            const existingDevice = await new Promise((resolve) => {
+                const db = require('../database'); // Import lại db để dùng query trực tiếp
+                db.get("SELECT id FROM devices WHERE tb_device_id = ?", [tbDev.id.id], (err, row) => resolve(row));
+            });
+
+            if (!existingDevice) {
+                // Nếu chưa có -> Lấy Credentials (Token)
+                const accessToken = await getDeviceAccessToken(tbDev.id.id, jwtToken);
+                
+                // Lưu vào DB
+                await deviceService.createDeviceOnThingsBoard({
+                    name: tbDev.name,
+                    type: tbDev.type,
+                    tb_device_id: tbDev.id.id,
+                    tb_access_token: accessToken
+                });
+                syncedCount++;
+            }
+        }
+
+        res.status(200).json({ message: `Đã đồng bộ thành công. Thêm mới ${syncedCount} thiết bị.` });
+
+    } catch (error) {
+        console.error("Lỗi đồng bộ:", error.message);
+        res.status(500).json({ error: "Lỗi đồng bộ: " + error.message });
+    }
+};
+
 module.exports = {
     scanWifiNetworks,
     getAllDevices,
@@ -275,5 +322,6 @@ module.exports = {
     deleteDevice,
     getDeviceDetail,
     updateDeviceConfig,
-    getDeviceTelemetry // Export hàm mới
+    getDeviceTelemetry,
+    syncDevices // Export hàm mới
 };

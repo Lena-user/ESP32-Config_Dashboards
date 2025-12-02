@@ -106,6 +106,25 @@ function DeviceListPage() {
     setSelectedDevices([]);
   };
 
+  // Hàm gọi API Sync
+  const handleSync = async () => {
+      setIsLoading(true);
+      try {
+          const response = await fetch('/api/devices/sync', { method: 'POST' });
+          const data = await response.json();
+          if (response.ok) {
+              alert(data.message);
+              fetchDevices(); // Tải lại danh sách sau khi sync
+          } else {
+              alert("Lỗi: " + data.error);
+          }
+      } catch (error) {
+          alert("Lỗi kết nối server");
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
   return (
     <div className="main-content">
       <div className="content-header">
@@ -122,6 +141,25 @@ function DeviceListPage() {
             </>
           ) : (
             <>
+              {/* NÚT ĐỒNG BỘ MỚI */}
+              <button 
+                onClick={handleSync} 
+                className="sync-btn" 
+                disabled={isLoading}
+                style={{
+                    backgroundColor: '#ffc107', 
+                    color: '#333', 
+                    border: 'none', 
+                    padding: '10px 20px', 
+                    borderRadius: '8px', 
+                    fontWeight: '600', 
+                    cursor: 'pointer',
+                    marginRight: '10px'
+                }}
+              >
+                {isLoading ? '⏳ Đang đồng bộ...' : '🔄 Đồng bộ từ Cloud'}
+              </button>
+
               <button onClick={() => setIsModalOpen(true)} className="add-device-btn">
                 + Thêm thiết bị mới
               </button>
@@ -143,7 +181,11 @@ function DeviceListPage() {
               {isDeleteMode && <th></th>}
               <th>Tên thiết bị</th>
               <th>Loại</th>
+              
+              {/* --- SỬA ĐỔI PHẦN TRẠNG THÁI TẠI ĐÂY --- */}
               <th>Trạng thái</th>
+              {/* --------------------------------------- */}
+
               <th>Hành động</th>
             </tr>
           </thead>
@@ -161,10 +203,21 @@ function DeviceListPage() {
                 )}
                 <td>{device.name}</td>
                 <td>{device.type}</td>
+                
+                {/* --- SỬA ĐỔI PHẦN TRẠNG THÁI TẠI ĐÂY --- */}
                 <td>
-                  <span className={`status-dot ${device.status ? device.status.toLowerCase() : 'offline'}`}></span>
-                  {device.status || 'Unknown'}
+                  <div className="status-cell">
+                    {/* Logic: Nếu status là 'active' thì dùng class 'online' (xanh), ngược lại 'offline' (đỏ) */}
+                    <span className={`status-dot ${device.status === 'active' ? 'online' : 'offline'}`}></span>
+                    
+                    {/* Hiển thị text */}
+                    <span style={{textTransform: 'capitalize'}}>
+                        {device.status === 'active' ? 'Hoạt động' : 'Mất kết nối'}
+                    </span>
+                  </div>
                 </td>
+                {/* --------------------------------------- */}
+
                 <td>
                   <Link to={`/devices/${device.id}`} className="action-link">
                     Xem chi tiết

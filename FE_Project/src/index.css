@@ -371,20 +371,27 @@ input, button, select, textarea, option {
     color: #444;
 }
 
+.status-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Khoảng cách giữa dấu chấm và chữ */
+}
+
 .status-dot {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 12px;  /* Tăng kích thước lên chút cho rõ */
+    height: 12px;
     border-radius: 50%;
-    margin-right: 8px;
+    flex-shrink: 0; /* Không bị méo khi co màn hình */
 }
 
 .status-dot.online {
-    background-color: #28a745; /* Green */
+    background-color: #28a745; /* Xanh lá */
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.5); /* Hiệu ứng phát sáng nhẹ */
 }
 
 .status-dot.offline {
-    background-color: #dc3545; /* Red */
+    background-color: #dc3545; /* Đỏ */
 }
 
 .action-link {
