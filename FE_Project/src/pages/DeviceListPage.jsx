@@ -1,34 +1,49 @@
-import React, { useState, useEffect } from 'react'; // Thêm useEffect
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Modal from '../components/Modal';
 
 function DeviceListPage() {
-  const [devices, setDevices] = useState([]); // Bỏ initialMockDevices, khởi tạo mảng rỗng
+  const [devices, setDevices] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDevice, setNewDevice] = useState({ name: '', type: '' });
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Thêm trạng thái loading
+  
+  // Thêm state loading riêng cho việc khởi tạo
+  const [isInitializing, setIsInitializing] = useState(true); 
 
-  // 1. Hàm lấy danh sách thiết bị từ API
+  // Hàm lấy danh sách từ DB (Local)
   const fetchDevices = async () => {
     try {
       const response = await fetch('/api/devices');
-      if (response.ok) {
-        const data = await response.json();
-        setDevices(data);
-      } else {
-        console.error("Lỗi khi tải danh sách thiết bị");
-      }
+      const data = await response.json();
+      setDevices(data);
     } catch (error) {
-      console.error("Lỗi kết nối:", error);
+      console.error('Lỗi khi lấy danh sách thiết bị:', error);
     }
   };
 
-  // Gọi API khi trang vừa load
+  // --- LOGIC MỚI: TỰ ĐỘNG ĐỒNG BỘ KHI VÀO TRANG ---
   useEffect(() => {
-    fetchDevices();
-  }, []);
+    const syncAndFetch = async () => {
+      setIsInitializing(true); // Bắt đầu loading toàn trang
+      try {
+        // Bước 1: Gọi API Sync để đồng bộ Cloud -> Local
+        // console.log("Đang đồng bộ dữ liệu từ ThingsBoard...");
+        await fetch('/api/devices/sync', { method: 'POST' });
+        
+        // Bước 2: Sau khi Sync xong, mới lấy dữ liệu từ Local ra hiển thị
+        await fetchDevices();
+      } catch (error) {
+        console.error("Lỗi đồng bộ:", error);
+        // Nếu Sync lỗi (mất mạng...), vẫn cố gắng hiển thị dữ liệu cũ
+        await fetchDevices(); 
+      } finally {
+        setIsInitializing(false); // Tắt loading
+      }
+    };
+
+    syncAndFetch();
+  }, []); // Chạy 1 lần duy nhất khi component được mount
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -38,7 +53,6 @@ function DeviceListPage() {
   // 2. Hàm Thêm thiết bị (Gọi API ThingsBoard)
   const handleAddDevice = async (e) => {
     e.preventDefault();
-    setIsLoading(true); // Bắt đầu loading
     try {
       const response = await fetch('/api/devices/thingsboard', {
         method: 'POST',
@@ -61,8 +75,6 @@ function DeviceListPage() {
     } catch (error) {
       console.error("Lỗi:", error);
       alert("Lỗi kết nối đến server");
-    } finally {
-      setIsLoading(false); // Kết thúc loading
     }
   };
 
@@ -78,7 +90,6 @@ function DeviceListPage() {
   const confirmDelete = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa các thiết bị đã chọn?")) return;
 
-    setIsLoading(true);
     try {
       // Xóa từng thiết bị một (Backend của bạn API xóa theo từng ID)
       // Sử dụng Promise.all để xóa song song cho nhanh
@@ -96,8 +107,6 @@ function DeviceListPage() {
     } catch (error) {
       console.error("Lỗi khi xóa:", error);
       alert("Có lỗi xảy ra khi xóa thiết bị.");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -106,24 +115,15 @@ function DeviceListPage() {
     setSelectedDevices([]);
   };
 
-  // Hàm gọi API Sync
-  const handleSync = async () => {
-      setIsLoading(true);
-      try {
-          const response = await fetch('/api/devices/sync', { method: 'POST' });
-          const data = await response.json();
-          if (response.ok) {
-              alert(data.message);
-              fetchDevices(); // Tải lại danh sách sau khi sync
-          } else {
-              alert("Lỗi: " + data.error);
-          }
-      } catch (error) {
-          alert("Lỗi kết nối server");
-      } finally {
-          setIsLoading(false);
-      }
-  };
+  // Nếu đang đồng bộ lần đầu, hiện màn hình chờ
+  if (isInitializing) {
+      return (
+          <div style={{textAlign: 'center', marginTop: '50px', color: '#666'}}>
+              <h2>⏳ Đang đồng bộ dữ liệu từ Cloud...</h2>
+              <p>Vui lòng đợi trong giây lát</p>
+          </div>
+      );
+  }
 
   return (
     <div className="main-content">
@@ -132,34 +132,15 @@ function DeviceListPage() {
         <div className="header-actions">
           {isDeleteMode ? (
             <>
-              <button onClick={confirmDelete} className="confirm-delete-btn" disabled={selectedDevices.length === 0 || isLoading}>
-                {isLoading ? 'Đang xóa...' : 'Xác nhận xóa'}
+              <button onClick={confirmDelete} className="confirm-delete-btn" disabled={selectedDevices.length === 0}>
+                Xác nhận xóa
               </button>
-              <button onClick={cancelDelete} className="cancel-delete-btn" disabled={isLoading}>
+              <button onClick={cancelDelete} className="cancel-delete-btn">
                 Hủy
               </button>
             </>
           ) : (
             <>
-              {/* NÚT ĐỒNG BỘ MỚI */}
-              <button 
-                onClick={handleSync} 
-                className="sync-btn" 
-                disabled={isLoading}
-                style={{
-                    backgroundColor: '#ffc107', 
-                    color: '#333', 
-                    border: 'none', 
-                    padding: '10px 20px', 
-                    borderRadius: '8px', 
-                    fontWeight: '600', 
-                    cursor: 'pointer',
-                    marginRight: '10px'
-                }}
-              >
-                {isLoading ? '⏳ Đang đồng bộ...' : '🔄 Đồng bộ từ Cloud'}
-              </button>
-
               <button onClick={() => setIsModalOpen(true)} className="add-device-btn">
                 + Thêm thiết bị mới
               </button>
@@ -269,8 +250,8 @@ function DeviceListPage() {
               </div>
 
               <div className="modal-footer-custom">
-                <button type="submit" className="btn-submit-custom" disabled={isLoading}>
-                    {isLoading ? 'ĐANG XỬ LÝ...' : 'THÊM'}
+                <button type="submit" className="btn-submit-custom">
+                    THÊM
                 </button>
               </div>
             </form>

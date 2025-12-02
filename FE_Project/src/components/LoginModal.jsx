@@ -4,6 +4,7 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false); // State để quản lý việc hiện/ẩn mật khẩu
 
     if (!isOpen) return null;
 
@@ -16,7 +17,6 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
         setError('');
         setIsLoading(true);
         
-        // Luôn gọi API login
         const endpoint = '/api/auth/login';
 
         try {
@@ -62,15 +62,33 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
                                 placeholder="Email quản trị..."
                             />
                         </div>
-                        <div className="form-group">
+
+                        <div className="form-group" style={{position: 'relative'}}>
                             <input 
-                                type="password" name="password" required 
+                                type={showPassword ? "text" : "password"} // Chuyển đổi type giữa 'text' và 'password'
+                                name="password" required 
                                 value={formData.password} onChange={handleChange}
                                 placeholder="Mật khẩu..."
+                                style={{paddingRight: '40px'}} // Thêm padding bên phải để chữ không đè lên icon
                             />
+                            
+                            <span 
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '10px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    cursor: 'pointer',
+                                    fontSize: '1.2rem',
+                                    userSelect: 'none',
+                                    color: '#666'
+                                }}
+                                title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                            >
+                                {showPassword ? "🙈" : "👁️"}
+                            </span>
                         </div>
-                        
-                        {/* Bỏ phần chuyển đổi Đăng ký */}
                     </div>
 
                     <div className="modal-footer-custom">
