@@ -7,6 +7,6 @@ module.exports = {
     // HOẶC nếu chạy local:
     // TB_SERVER_URL: 'http://localhost:8080', 
 
-    TB_USER: 'le.lena5415@gmail.com', // Thay bằng user của bạn
-    TB_PASSWORD: '@Lena5415'              // Thay bằng pass của bạn
+    TB_USER: 'khai.to0707@hcmut.edu.vn', // Thay bằng user của bạn
+    TB_PASSWORD: 'mt070704'              // Thay bằng pass của bạn
 };

@@ -28,6 +28,8 @@ constexpr uint32_t SERIAL_DEBUG_BAUD = 115200U;
 constexpr char SEND_INTERVAL_ATTR[] = "sendInterval";
 constexpr char WIFI_SSID_ATTR[] = "wifi_ssid";
 constexpr char WIFI_PASSWORD_ATTR[] = "wifi_pass";
+constexpr char ID_DEVICE_ATTR[] = "id_device";
+
 
 volatile bool attributesChanged = false;
 volatile bool lightBufFilled = false;
@@ -42,8 +44,9 @@ static bool tb_was_connected = false;
 static bool tb_subscribed = false;
 
 
-constexpr std::array<const char *, 3U> SHARED_ATTRIBUTES_LIST = {
+constexpr std::array<const char *, 4U> SHARED_ATTRIBUTES_LIST = {
     SEND_INTERVAL_ATTR,
+    ID_DEVICE_ATTR,
     WIFI_SSID_ATTR,
     WIFI_PASSWORD_ATTR
 };
@@ -87,6 +90,14 @@ void processSharedAttributes(const Shared_Attribute_Data &data) {
                 Serial.printf("%u (sendInterval)\n", sendInterval);
             } else {
                 Serial.printf("%u (ignored, out of range)\n", new_send);
+            }
+        } else if (key == ID_DEVICE_ATTR) {
+            const char *v = it->value().as<const char *>();
+            if (v) {
+                id_device = String(v);
+                Serial.printf("%s (id_device)\n", id_device.c_str());
+            } else {
+                Serial.println("(null)");
             }
         } else if (key == WIFI_SSID_ATTR) {
             const char *v = it->value().as<const char *>();
@@ -165,9 +176,6 @@ void connectwf(void *parameter) {
                     cur_PASS = wifi_pass;
                     break;
                 }
-                else {
-                    Serial.printf("[ATTR] Invalid WiFi config : SSID=%s\n", wifi_ssid.c_str());
-                }
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
         }
@@ -232,7 +240,8 @@ void taskSendAttributeData(void *param) {
                 tb.sendAttributeData("rssi", WiFi.RSSI());
                 tb.sendAttributeData("localIp", WiFi.localIP().toString().c_str());
                 tb.sendAttributeData("ssid", cur_SSID.c_str());
-                tb.sendAttributeData("pass", cur_PASS.c_str());               
+                tb.sendAttributeData("pass", cur_PASS.c_str());
+                tb.sendAttributeData("sendInterval", sendInterval);         
             }
         }
         vTaskDelay(pdMS_TO_TICKS(200));
