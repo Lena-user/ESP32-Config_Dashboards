@@ -71,6 +71,13 @@ uint16_t readLightRawFiltered() {
     return sum / count; 
 }
 
+String stripQuotes(const String &s) {
+    if (s.length() >= 2 && s[0] == '\"' && s[s.length() - 1] == '\"') {
+        return s.substring(1, s.length() - 1);
+    }
+    return s;
+}
+
 // -------------------- Shared Attribute --------------------
 void processSharedAttributes(const Shared_Attribute_Data &data) {
     Serial.println("\n[ATTR] Shared attribute update received:");
@@ -99,7 +106,8 @@ void processSharedAttributes(const Shared_Attribute_Data &data) {
         } else if (key == WIFI_SSID_ATTR) {
             const char *v = it->value().as<const char *>();
             if (v) {
-                wifi_ssid = String(v);
+                String rawssid = String(v);
+                wifi_ssid = stripQuotes(rawssid);
                 ssidUpdated = true;
                 Serial.printf("%s (deferred reconnect)\n", wifi_ssid.c_str());
             } else {
@@ -108,7 +116,8 @@ void processSharedAttributes(const Shared_Attribute_Data &data) {
         } else if (key == WIFI_PASSWORD_ATTR) {
             const char *v = it->value().as<const char *>();
             if (v) {
-                wifi_pass = String(v);
+                String rawPass = String(v);
+                wifi_pass = stripQuotes(rawPass);
                 passUpdated = true;
                 Serial.printf("***** (password updated, hidden) (deferred reconnect)\n");
             } else {
@@ -161,7 +170,6 @@ void connectwf(void *parameter) {
         if (wifiReconnectRequested) {
             wifiReconnectRequested = false;
             Serial.printf("[ATTR] New WiFi config received: SSID=%s\n", wifi_ssid.c_str());
-
             WiFi.disconnect(true);
             WiFi.mode(WIFI_STA);
             WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
@@ -236,8 +244,8 @@ void taskSendAttributeData(void *param) {
             if (WiFi.status() == WL_CONNECTED && tb.connected()) {
                 tb.sendAttributeData("rssi", WiFi.RSSI());
                 tb.sendAttributeData("localIp", WiFi.localIP().toString().c_str());
-                tb.sendAttributeData("ssid", cur_SSID.c_str());
-                tb.sendAttributeData("pass", cur_PASS.c_str());
+                tb.sendAttributeData("ssid", ("\"" + cur_SSID + "\"").c_str());
+                tb.sendAttributeData("pass", ("\"" + cur_PASS + "\"").c_str());
                 tb.sendAttributeData("sendInterval", sendInterval);         
             }
         }
