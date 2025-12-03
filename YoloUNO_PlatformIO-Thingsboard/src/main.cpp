@@ -5,9 +5,6 @@
 #include "DHT.h"
 #include <Wire.h>
 #include <ArduinoOTA.h>
-#include <RPC_Callback.h>
-#include <RPC_Response.h>
-#include <RPC_Request_Callback.h>
 #include <web.h>
 #include <global.h>
 
