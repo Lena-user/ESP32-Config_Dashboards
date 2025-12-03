@@ -14,18 +14,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 function initDb() {
-    // Thêm 3 cột mới: wifi_ssid, wifi_password, frequency
+    // Thêm cột owner_email
     const sql = `
         CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
+            name TEXT NOT NULL,
             type TEXT,
             status TEXT DEFAULT 'offline',
-            tb_device_id TEXT,
+            tb_device_id TEXT UNIQUE,  -- THÊM CHỮ 'UNIQUE' VÀO ĐÂY
             tb_access_token TEXT,
             wifi_ssid TEXT,
             wifi_password TEXT,
-            frequency INTEGER DEFAULT 10
+            frequency INTEGER DEFAULT 10,
+            alert_config TEXT,
+            owner_email TEXT
         )
     `;
     
@@ -37,7 +39,7 @@ function initDb() {
         }
     });
 
-    // THÊM BẢNG USERS
+    // THÊM BẢNG USERS (Vẫn giữ bảng để code không lỗi, nhưng không tạo dữ liệu)
     const sqlUsers = `
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,17 +52,8 @@ function initDb() {
         if (err) {
             console.error("Lỗi tạo bảng users:", err);
         } else {
-            // --- TẠO TÀI KHOẢN MẶC ĐỊNH (SEEDING) ---
-            const checkSql = "SELECT count(*) as count FROM users";
-            db.get(checkSql, [], (err, row) => {
-                if (row && row.count === 0) {
-                    const insertAdmin = "INSERT INTO users (email, password) VALUES (?, ?)";
-                    // Tài khoản: admin@iot.com / Mật khẩu: 123456
-                    db.run(insertAdmin, ["admin@iot.com", "123456"], (err) => {
-                        if (!err) console.log("--> Đã tạo tài khoản mặc định: admin@iot.com / 123456");
-                    });
-                }
-            });
+            // --- ĐÃ XÓA ĐOẠN TẠO TÀI KHOẢN ADMIN MẶC ĐỊNH ---
+            console.log("Bảng users đã sẵn sàng (Không có tài khoản mặc định).");
         }
     });
 }

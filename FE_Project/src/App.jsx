@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
 import DeviceListPage from './pages/DeviceListPage';
 import DeviceDetailPage from './pages/DeviceDetailPage';
 import LoginModal from './components/LoginModal'; // Import Modal mới
@@ -29,11 +28,23 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // --- LOGIC TỰ ĐỘNG ĐĂNG NHẬP ---
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    // Kiểm tra xem có Token và User trong bộ nhớ trình duyệt không
+    const storedToken = localStorage.getItem('iot_token');
+    const storedUser = localStorage.getItem('iot_user');
+
+    if (storedToken && storedUser) {
+      try {
+        // Nếu có, phục hồi lại phiên đăng nhập
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        // Nếu dữ liệu lỗi, xóa đi để đăng nhập lại
+        localStorage.removeItem('iot_token');
+        localStorage.removeItem('iot_user');
+      }
     }
+    // Nếu không có token, user vẫn là null -> Hiện Landing Page
     setLoading(false);
   }, []);
 
@@ -42,12 +53,15 @@ function App() {
     setShowLoginModal(false);
   };
 
+  // --- LOGIC ĐĂNG XUẤT ---
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
+    // Xóa sạch token và user info khỏi bộ nhớ
+    localStorage.removeItem('iot_token');
+    localStorage.removeItem('iot_user');
+    setUser(null); // State về null -> Tự động chuyển về Landing Page
   };
 
-  if (loading) return null;
+  if (loading) return null; // Hoặc return <div...>Loading...</div>
 
   return (
     <Router>

@@ -1,4 +1,3 @@
-// index.js
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -15,11 +14,11 @@ app.use(bodyParser.json());
 app.use('/api/devices', deviceRoutes); 
 // -----------------------------------------
 
-// Routes API
-app.use('/api/devices', deviceRoutes);
-
 // Thêm Routes Auth trực tiếp tại đây cho nhanh
-app.post('/api/auth/register', authController.register);
+// --- XÓA DÒNG DƯỚI ĐÂY VÌ HÀM REGISTER ĐÃ BỊ XÓA ---
+// app.post('/api/auth/register', authController.register); 
+// ---------------------------------------------------
+
 app.post('/api/auth/login', authController.login);
 
 app.listen(PORT, () => {

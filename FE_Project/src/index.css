@@ -724,6 +724,35 @@ input, button, select, textarea, option {
     color: #2b3674; /* Màu xanh đen đậm */
 }
 
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.telemetry-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+    border: 1px solid #eee;
+}
+
+.telemetry-title {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.telemetry-value {
+    font-size: 1.8rem;
+    color: #2196F3;
+    font-weight: bold;
+}
+
 @media (max-width: 992px) {
     .device-detail-grid {
         grid-template-columns: 1fr;

@@ -7,6 +7,7 @@ function DeviceListPage() {
   const [newDevice, setNewDevice] = useState({ name: '', type: '' });
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [isSyncing, setSyncing] = useState(false);
   
   // Thêm state loading riêng cho việc khởi tạo
   const [isInitializing, setIsInitializing] = useState(true); 
@@ -14,7 +15,15 @@ function DeviceListPage() {
   // Hàm lấy danh sách từ DB (Local)
   const fetchDevices = async () => {
     try {
-      const response = await fetch('/api/devices');
+      // --- CẬP NHẬT LOGIC: Lấy Email để gửi lên Backend ---
+      const userStr = localStorage.getItem('iot_user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const email = user ? user.email : '';
+
+      const response = await fetch('/api/devices', {
+          headers: { 'X-User-Email': email } // Gửi email để lọc danh sách
+      });
+      // ----------------------------------------------------
       const data = await response.json();
       setDevices(data);
     } catch (error) {
@@ -25,20 +34,32 @@ function DeviceListPage() {
   // --- LOGIC MỚI: TỰ ĐỘNG ĐỒNG BỘ KHI VÀO TRANG ---
   useEffect(() => {
     const syncAndFetch = async () => {
-      setIsInitializing(true); // Bắt đầu loading toàn trang
+      setIsInitializing(true); 
       try {
-        // Bước 1: Gọi API Sync để đồng bộ Cloud -> Local
-        // console.log("Đang đồng bộ dữ liệu từ ThingsBoard...");
-        await fetch('/api/devices/sync', { method: 'POST' });
+        const token = localStorage.getItem('iot_token');
+
+        // --- CẬP NHẬT LOGIC: Lấy Email ---
+        const userStr = localStorage.getItem('iot_user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const email = user ? user.email : ''; 
+        // ---------------------------------
+
+        // Gọi API Sync PHẢI CÓ HEADER chứa Token và Email
+        await fetch('/api/devices/sync', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'X-User-Email': email // <--- QUAN TRỌNG: Để lưu owner_email
+            }
+        });
         
-        // Bước 2: Sau khi Sync xong, mới lấy dữ liệu từ Local ra hiển thị
         await fetchDevices();
       } catch (error) {
         console.error("Lỗi đồng bộ:", error);
-        // Nếu Sync lỗi (mất mạng...), vẫn cố gắng hiển thị dữ liệu cũ
         await fetchDevices(); 
       } finally {
-        setIsInitializing(false); // Tắt loading
+        setIsInitializing(false); 
       }
     };
 
@@ -115,6 +136,37 @@ function DeviceListPage() {
     setSelectedDevices([]);
   };
 
+  // Hàm đồng bộ thủ công (nếu bạn muốn gắn vào nút nào đó sau này)
+  const syncDevices = async () => {
+    setSyncing(true);
+    try {
+        const token = localStorage.getItem('iot_token'); 
+        
+        // --- CẬP NHẬT LOGIC: Lấy Email ---
+        const userStr = localStorage.getItem('iot_user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const email = user ? user.email : '';
+        // ---------------------------------
+
+        const response = await fetch('/api/devices/sync', {
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'X-User-Email': email // <--- QUAN TRỌNG
+            }
+        });
+
+        if (response.ok) {
+            await fetchDevices();
+        }
+    } catch (error) {
+        console.error("Lỗi đồng bộ:", error);
+    } finally {
+        setSyncing(false);
+    }
+  };
+
   // Nếu đang đồng bộ lần đầu, hiện màn hình chờ
   if (isInitializing) {
       return (
@@ -162,11 +214,7 @@ function DeviceListPage() {
               {isDeleteMode && <th></th>}
               <th>Tên thiết bị</th>
               <th>Loại</th>
-              
-              {/* --- SỬA ĐỔI PHẦN TRẠNG THÁI TẠI ĐÂY --- */}
               <th>Trạng thái</th>
-              {/* --------------------------------------- */}
-
               <th>Hành động</th>
             </tr>
           </thead>
@@ -184,11 +232,8 @@ function DeviceListPage() {
                 )}
                 <td>{device.name}</td>
                 <td>{device.type}</td>
-                
-                {/* --- SỬA ĐỔI PHẦN TRẠNG THÁI TẠI ĐÂY --- */}
                 <td>
                   <div className="status-cell">
-                    {/* Logic: Nếu status là 'active' thì dùng class 'online' (xanh), ngược lại 'offline' (đỏ) */}
                     <span className={`status-dot ${device.status === 'active' ? 'online' : 'offline'}`}></span>
                     
                     {/* Hiển thị text */}
@@ -197,8 +242,6 @@ function DeviceListPage() {
                     </span>
                   </div>
                 </td>
-                {/* --------------------------------------- */}
-
                 <td>
                   <Link to={`/devices/${device.id}`} className="action-link">
                     Xem chi tiết

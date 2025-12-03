@@ -29,9 +29,15 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
             const data = await response.json();
 
             if (response.ok) {
-                localStorage.setItem('user', JSON.stringify(data.user));
+                // --- SỬA ĐOẠN NÀY ---
+                // Lưu Token và User Info vào LocalStorage
+                // Token này dùng để chứng minh "tôi đã đăng nhập" ở lần sau
+                localStorage.setItem('iot_token', data.token); 
+                localStorage.setItem('iot_user', JSON.stringify(data.user));
+                
                 onLoginSuccess(data.user);
                 onClose();
+                // --------------------
             } else {
                 setError(data.error || "Sai email hoặc mật khẩu");
             }

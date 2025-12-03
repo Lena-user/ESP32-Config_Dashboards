@@ -1,36 +1,49 @@
 const db = require('../database');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const axios = require('axios'); // Import axios
+// Import file cấu hình để lấy URL chuẩn (https://app.coreiot.io)
+const tbConfig = require('../thingboardsConfig');
 
-// Đăng ký
-const register = (req, res) => {
+const SECRET_KEY = 'your_secret_key_123'; // Nên đưa vào biến môi trường
+const THINGSBOARD_URL = tbConfig.TB_SERVER_URL; // ⚠️ THAY ĐỔI URL NÀY THÀNH URL THINGSBOARD CỦA BẠN (VD: http://192.168.1.100:8080)
+
+// --- ĐÃ XÓA HÀM REGISTER ---
+
+// Đăng nhập (Logic: Check ThingsBoard trước -> Check Local sau)
+const login = async (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Thiếu thông tin" });
 
-    // Lưu user vào DB (Lưu ý: Thực tế nên mã hóa password bằng bcrypt, ở đây làm đơn giản demo)
-    const sql = "INSERT INTO users (email, password) VALUES (?, ?)";
-    db.run(sql, [email, password], function(err) {
-        if (err) {
-            if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "Email đã tồn tại" });
-            return res.status(500).json({ error: err.message });
-        }
-        res.status(201).json({ message: "Đăng ký thành công", userId: this.lastID });
-    });
-};
+    console.log(`>> Đang gửi yêu cầu đến: ${THINGSBOARD_URL}/api/auth/login`);
+    console.log(`>> Email: ${email}`);
 
-// Đăng nhập
-const login = (req, res) => {
-    const { email, password } = req.body;
-    const sql = "SELECT * FROM users WHERE email = ? AND password = ?";
-    
-    db.get(sql, [email, password], (err, row) => {
-        if (err) return res.status(500).json({ error: "Lỗi Server" });
-        if (!row) return res.status(401).json({ error: "Sai email hoặc mật khẩu" });
-
-        // Trả về thông tin user (Thực tế nên trả về JWT Token)
-        res.status(200).json({ 
-            message: "Đăng nhập thành công",
-            user: { id: row.id, email: row.email }
+    try {
+        const tbResponse = await axios.post(`${THINGSBOARD_URL}/api/auth/login`, {
+            username: email, 
+            password: password
         });
-    });
+
+        if (tbResponse.data && tbResponse.data.token) {
+            console.log(">> Đăng nhập THÀNH CÔNG!");
+            return res.json({ 
+                token: tbResponse.data.token, 
+                user: { email: email, role: 'admin', source: 'CoreIOT' } 
+            });
+        }
+    } catch (error) {
+        console.error(">> LỖI ĐĂNG NHẬP:");
+        if (error.response) {
+            console.error("   Status:", error.response.status);
+            // CoreIOT thường trả về message lỗi cụ thể ở đây
+            console.error("   Data:", error.response.data);
+        } else {
+            console.error("   Message:", error.message);
+        }
+        
+        return res.status(401).json({ 
+            error: "Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản CoreIOT." 
+        });
+    }
 };
 
-module.exports = { register, login };
+module.exports = { login }; // Chỉ export login

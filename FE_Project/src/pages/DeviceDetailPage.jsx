@@ -19,7 +19,7 @@ const DeviceDetailPage = () => {
     frequency: 10
   });
 
-  // State cấu hình cảnh báo (Local)
+  // State cấu hình cảnh báo
   const [alertConfig, setAlertConfig] = useState({
     temperature: { min: 0, max: 50 },
     humidity: { min: 20, max: 80 }
@@ -27,7 +27,7 @@ const DeviceDetailPage = () => {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- HÀM LOGIC CẢNH BÁO (Đã fix lỗi so sánh) ---
+  // --- HÀM LOGIC CẢNH BÁO ---
   const getAlertStatus = (key, value) => {
     const k = key.toLowerCase(); 
     const val = parseFloat(value);
@@ -53,20 +53,36 @@ const DeviceDetailPage = () => {
       if (response.ok) {
         const data = await response.json();
         setDevice(data);
+        
+        // 1. Nạp cấu hình Wifi/Frequency
         setConfig({
             wifi_ssid: data.wifi_ssid || '',
             wifi_password: data.wifi_password || '',
             frequency: data.frequency || 10
         });
-        const savedAlerts = localStorage.getItem(`alert_config_${id}`);
-        if (savedAlerts) setAlertConfig(JSON.parse(savedAlerts));
+
+        // 2. Nạp cấu hình Alert từ Database (Thay vì LocalStorage)
+        if (data.alert_config) {
+            try {
+                // Backend trả về chuỗi JSON, cần parse ra object
+                const parsedAlerts = typeof data.alert_config === 'string' 
+                    ? JSON.parse(data.alert_config) 
+                    : data.alert_config;
+                setAlertConfig(parsedAlerts);
+            } catch (e) {
+                console.error("Lỗi parse alert_config:", e);
+            }
+        }
       }
     } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
   };
 
   const fetchTelemetry = async () => {
     try {
-        const response = await fetch(`/api/devices/${id}/telemetry`);
+        const token = localStorage.getItem('iot_token'); // Lấy token để xác thực nếu cần
+        const response = await fetch(`/api/devices/${id}/telemetry`, {
+             headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (response.ok) {
             const data = await response.json();
             setTelemetry(data);
@@ -113,12 +129,31 @@ const DeviceDetailPage = () => {
     } catch (error) { alert("Lỗi kết nối server."); } finally { setIsSaving(false); }
   };
 
-  // Lưu cấu hình Local (Cảnh báo)
-  const handleSaveAlertConfig = (e) => {
+  // Lưu cấu hình Cảnh báo (Gửi về Server thay vì LocalStorage)
+  const handleSaveAlertConfig = async (e) => {
       e.preventDefault();
-      localStorage.setItem(`alert_config_${id}`, JSON.stringify(alertConfig));
-      alert("Đã cập nhật ngưỡng cảnh báo!");
-      setShowConfigModal(false);
+      setIsSaving(true);
+      try {
+          // Gọi API update config, nhưng chỉ gửi phần alert_config
+          const response = await fetch(`/api/devices/${id}/config`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ alert_config: alertConfig })
+          });
+
+          if (response.ok) {
+              alert("Đã cập nhật ngưỡng cảnh báo lên Server!");
+              fetchDevice(); // Tải lại để đồng bộ
+              setShowConfigModal(false);
+          } else {
+              alert("Lỗi khi lưu cảnh báo.");
+          }
+      } catch (error) {
+          console.error(error);
+          alert("Lỗi kết nối server.");
+      } finally {
+          setIsSaving(false);
+      }
   };
 
   const copyToken = () => {
