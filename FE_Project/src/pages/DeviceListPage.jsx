@@ -8,22 +8,17 @@ function DeviceListPage() {
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [isSyncing, setSyncing] = useState(false);
-  
-  // Thêm state loading riêng cho việc khởi tạo
   const [isInitializing, setIsInitializing] = useState(true); 
 
-  // Hàm lấy danh sách từ DB (Local)
   const fetchDevices = async () => {
     try {
-      // --- CẬP NHẬT LOGIC: Lấy Email để gửi lên Backend ---
       const userStr = localStorage.getItem('iot_user');
       const user = userStr ? JSON.parse(userStr) : null;
       const email = user ? user.email : '';
 
       const response = await fetch('/api/devices', {
-          headers: { 'X-User-Email': email } // Gửi email để lọc danh sách
+          headers: { 'X-User-Email': email }
       });
-      // ----------------------------------------------------
       const data = await response.json();
       setDevices(data);
     } catch (error) {
@@ -31,26 +26,25 @@ function DeviceListPage() {
     }
   };
 
-  // --- LOGIC MỚI: TỰ ĐỘNG ĐỒNG BỘ KHI VÀO TRANG ---
+  // --- SỬA LOGIC ĐỒNG BỘ ---
   useEffect(() => {
     const syncAndFetch = async () => {
       setIsInitializing(true); 
       try {
         const token = localStorage.getItem('iot_token');
+        const tbToken = localStorage.getItem('tb_token'); // <--- 1. LẤY TOKEN THINGSBOARD
 
-        // --- CẬP NHẬT LOGIC: Lấy Email ---
         const userStr = localStorage.getItem('iot_user');
         const user = userStr ? JSON.parse(userStr) : null;
         const email = user ? user.email : ''; 
-        // ---------------------------------
 
-        // Gọi API Sync PHẢI CÓ HEADER chứa Token và Email
         await fetch('/api/devices/sync', { 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
-                'X-User-Email': email // <--- QUAN TRỌNG: Để lưu owner_email
+                'x-tb-token': tbToken, // <--- 2. GỬI KÈM TOKEN THINGSBOARD
+                'X-User-Email': email
             }
         });
         
@@ -64,7 +58,7 @@ function DeviceListPage() {
     };
 
     syncAndFetch();
-  }, []); // Chạy 1 lần duy nhất khi component được mount
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -141,19 +135,19 @@ function DeviceListPage() {
     setSyncing(true);
     try {
         const token = localStorage.getItem('iot_token'); 
-        
-        // --- CẬP NHẬT LOGIC: Lấy Email ---
+        const tbToken = localStorage.getItem('tb_token'); // <--- LẤY TOKEN TB
+
         const userStr = localStorage.getItem('iot_user');
         const user = userStr ? JSON.parse(userStr) : null;
         const email = user ? user.email : '';
-        // ---------------------------------
 
         const response = await fetch('/api/devices/sync', {
             method: 'POST', 
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
-                'X-User-Email': email // <--- QUAN TRỌNG
+                'x-tb-token': tbToken, // <--- GỬI KÈM TOKEN TB
+                'X-User-Email': email 
             }
         });
 

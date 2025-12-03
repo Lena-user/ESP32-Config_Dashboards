@@ -77,17 +77,60 @@ const DeviceDetailPage = () => {
     } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
   };
 
+  const fetchDeviceDetail = async () => {
+    try {
+      const token = localStorage.getItem('iot_token');
+      const tbToken = localStorage.getItem('tb_token'); // Lấy token TB
+
+      const response = await fetch(`/api/devices/${id}`, {
+          headers: { 
+              'Authorization': `Bearer ${token}`,
+              'x-tb-token': tbToken // Gửi kèm token TB qua header riêng
+          }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDevice(data);
+        
+        // 1. Nạp cấu hình Wifi/Frequency
+        setConfig({
+            wifi_ssid: data.wifi_ssid || '',
+            wifi_password: data.wifi_password || '',
+            frequency: data.frequency || 10
+        });
+
+        // 2. Nạp cấu hình Alert từ Database (Thay vì LocalStorage)
+        if (data.alert_config) {
+            try {
+                // Backend trả về chuỗi JSON, cần parse ra object
+                const parsedAlerts = typeof data.alert_config === 'string' 
+                    ? JSON.parse(data.alert_config) 
+                    : data.alert_config;
+                setAlertConfig(parsedAlerts);
+            } catch (e) {
+                console.error("Lỗi parse alert_config:", e);
+            }
+        }
+      }
+    } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
+  };
+
   const fetchTelemetry = async () => {
     try {
-        const token = localStorage.getItem('iot_token'); // Lấy token để xác thực nếu cần
-        const response = await fetch(`/api/devices/${id}/telemetry`, {
-             headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-            const data = await response.json();
-            setTelemetry(data);
-            setLastUpdated(new Date());
-        }
+      const token = localStorage.getItem('iot_token');
+      const tbToken = localStorage.getItem('tb_token'); // Lấy token TB
+
+      const response = await fetch(`/api/devices/${id}/telemetry`, {
+          headers: { 
+              'Authorization': `Bearer ${token}`,
+              'x-tb-token': tbToken // Gửi kèm token TB
+          }
+      });
+      if (response.ok) {
+          const data = await response.json();
+          setTelemetry(data);
+          setLastUpdated(new Date());
+      }
     } catch (error) { console.error("Lỗi tải telemetry:", error); }
   };
 

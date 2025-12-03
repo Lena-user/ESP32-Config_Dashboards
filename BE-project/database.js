@@ -39,12 +39,13 @@ function initDb() {
         }
     });
 
-    // THÊM BẢNG USERS (Vẫn giữ bảng để code không lỗi, nhưng không tạo dữ liệu)
+    // --- SỬA BẢNG USERS: THÊM CỘT NAME ---
     const sqlUsers = `
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
-            password TEXT
+            password TEXT,
+            name TEXT  -- <--- QUAN TRỌNG: Phải có cột này code mới chạy được
         )
     `;
 
@@ -52,8 +53,7 @@ function initDb() {
         if (err) {
             console.error("Lỗi tạo bảng users:", err);
         } else {
-            // --- ĐÃ XÓA ĐOẠN TẠO TÀI KHOẢN ADMIN MẶC ĐỊNH ---
-            console.log("Bảng users đã sẵn sàng (Không có tài khoản mặc định).");
+            console.log("Bảng users đã sẵn sàng.");
         }
     });
 }

@@ -4,7 +4,7 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false); // State để quản lý việc hiện/ẩn mật khẩu
+    const [showPassword, setShowPassword] = useState(false); 
 
     if (!isOpen) return null;
 
@@ -29,19 +29,26 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
             const data = await response.json();
 
             if (response.ok) {
-                // --- SỬA ĐOẠN NÀY ---
-                // Lưu Token và User Info vào LocalStorage
-                // Token này dùng để chứng minh "tôi đã đăng nhập" ở lần sau
-                localStorage.setItem('iot_token', data.token); 
-                localStorage.setItem('iot_user', JSON.stringify(data.user));
+                // --- CẬP NHẬT LOGIC LƯU TOKEN (KHÔNG ẢNH HƯỞNG UI) ---
+                localStorage.setItem('iot_token', data.token); // Lưu token nội bộ
+                localStorage.setItem('iot_user', JSON.stringify(data.user)); // Lưu user info
                 
+                // --- ĐOẠN CONSOLE LOG BẠN CẦN ---
+                if (data.tb_token) {
+                    console.log(">> Frontend: Đã nhận được Token TB, đang lưu vào LocalStorage...");
+                    localStorage.setItem('tb_token', data.tb_token);
+                } else {
+                    console.warn(">> Frontend: Không thấy Token TB trong phản hồi!");
+                }
+                // --------------------------------
+
                 onLoginSuccess(data.user);
                 onClose();
-                // --------------------
             } else {
                 setError(data.error || "Sai email hoặc mật khẩu");
             }
         } catch (err) {
+            console.error(err);
             setError("Lỗi kết nối Server");
         } finally {
             setIsLoading(false);
@@ -71,11 +78,11 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
                         <div className="form-group" style={{position: 'relative'}}>
                             <input 
-                                type={showPassword ? "text" : "password"} // Chuyển đổi type giữa 'text' và 'password'
+                                type={showPassword ? "text" : "password"} 
                                 name="password" required 
                                 value={formData.password} onChange={handleChange}
                                 placeholder="Mật khẩu..."
-                                style={{paddingRight: '40px'}} // Thêm padding bên phải để chữ không đè lên icon
+                                style={{paddingRight: '40px'}} 
                             />
                             
                             <span 
