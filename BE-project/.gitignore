@@ -1,0 +1,49 @@
+# Dependencies (Thư viện nặng, không up lên git)
+node_modules/
+
+# Environment variables (Chứa mật khẩu, API key - Bảo mật)
+.env
+.env.local
+.env.*
+
+# Database (File dữ liệu chạy thực tế, không nên up lên để tránh conflict)
+*.sqlite
+*.sqlite3
+*.db
+database.sqlite
+
+# Logs (File nhật ký lỗi)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# OS & Editor files (File rác của Win/Mac/VSCode)
+.DS// filepath: c:\Users\Admin\Documents\ESP32-Config_Dashboards\BE-project\.gitignore
+# Dependencies (Thư viện nặng, không up lên git)
+node_modules/
+
+# Environment variables (Chứa mật khẩu, API key - Bảo mật)
+.env
+.env.local
+.env.*
+
+# Database (File dữ liệu chạy thực tế, không nên up lên để tránh conflict)
+*.sqlite
+*.sqlite3
+*.db
+database.sqlite
+
+# Logs (File nhật ký lỗi)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# OS & Editor files (File rác của Win/Mac/VSCode)
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
