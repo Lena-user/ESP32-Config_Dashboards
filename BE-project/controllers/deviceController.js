@@ -103,16 +103,17 @@ const getDeviceDetail = (req, res) => {
 // --- 6. CẬP NHẬT CẤU HÌNH (ĐÃ SỬA: GỬI SHARED ATTRIBUTES LÊN THINGSBOARD) ---
 const updateDeviceConfig = async (req, res) => {
     const { id } = req.params;
-    const configData = req.body; // Dữ liệu từ Frontend gửi lên: { wifi_ssid, frequency, ... }
+    const configData = req.body; 
     
     console.log(`\n>> [CONFIG] Đang cập nhật cấu hình cho Device ID Local: ${id}`);
-    console.log(">> Dữ liệu:", configData);
+    // [DEBUG] Kiểm tra xem số 0 có bị mất ngay từ khi nhận không
+    console.log(">> [DEBUG] Password nhận được:", configData.wifi_password, "| Kiểu:", typeof configData.wifi_password);
 
     try {
-        // 1. Cập nhật vào Database Local trước (để lưu lại hiển thị cho lần sau)
+        // 1. Cập nhật vào Database Local
         await deviceService.updateDeviceInfo(id, configData);
 
-        // 2. Lấy thông tin thiết bị để lấy ID ThingsBoard
+        // 2. Lấy thông tin thiết bị
         const device = await new Promise((resolve, reject) => {
             db.get("SELECT * FROM devices WHERE id = ?", [id], (err, row) => {
                 if (err) reject(err);
@@ -127,12 +128,28 @@ const updateDeviceConfig = async (req, res) => {
         
         if (jwtToken && device.tb_device_id) {
             try {
-                // Chỉ gửi những thông số kỹ thuật (Wifi, Frequency) lên Shared Attribute
-                // Không cần gửi alert_config (vì cái đó chỉ dùng cho Frontend cảnh báo màu)
                 const sharedAttributes = {};
-                if (configData.wifi_ssid !== undefined) sharedAttributes.wifi_ssid = configData.wifi_ssid;
-                if (configData.wifi_password !== undefined) sharedAttributes.wifi_password = configData.wifi_password;
-                if (configData.frequency !== undefined) sharedAttributes.frequency = parseInt(configData.frequency);
+
+                // --- XỬ LÝ WIFI SSID ---
+                if (configData.wifi_ssid !== undefined) {
+                    sharedAttributes.wifi_ssid = String(configData.wifi_ssid);
+                }
+
+                // --- XỬ LÝ WIFI PASSWORD (QUAN TRỌNG) ---
+                // Kiểm tra cả key wifi_password (từ FE gửi) và wifi_pass (nếu có)
+                const rawPass = configData.wifi_password || configData.wifi_pass;
+                if (rawPass !== undefined) {
+                    // CÁCH CỦA BẠN: Bọc thêm dấu ngoặc kép để ép kiểu String
+                    // Ví dụ: Nhập 01234 -> Gửi lên: "01234"
+                    // ThingsBoard sẽ thấy dấu " và hiểu đây là chuỗi, không tự xóa số 0 nữa.
+                    sharedAttributes.wifi_pass = '"' + String(rawPass) + '"';
+                }
+
+                // --- XỬ LÝ CHU KỲ (Frequency -> sendInterval) ---
+                if (configData.frequency !== undefined) {
+                    // Nhân 1000 để đổi giây ra mili-giây (VD: 3 -> 3000)
+                    sharedAttributes.sendInterval = parseInt(configData.frequency) * 1000;
+                }
 
                 if (Object.keys(sharedAttributes).length > 0) {
                     console.log(">> [THINGSBOARD] Đang đẩy Shared Attributes:", sharedAttributes);
@@ -146,7 +163,6 @@ const updateDeviceConfig = async (req, res) => {
                 }
             } catch (tbError) {
                 console.error(">> [LỖI TB] Không đẩy được lên ThingsBoard:", tbError.message);
-                // Vẫn trả về success nhưng log lỗi để biết
             }
         } else {
             console.warn(">> [SKIP] Không có Token hoặc TB_ID, chỉ lưu Local.");
