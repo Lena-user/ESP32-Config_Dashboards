@@ -100,10 +100,64 @@ const getDeviceDetail = (req, res) => {
     });
 };
 
-// --- 6. CẬP NHẬT CẤU HÌNH ---
-const updateDeviceConfig = (req, res) => {
-    // ... (Logic update config)
-    res.json({ success: true });
+// --- 6. CẬP NHẬT CẤU HÌNH (ĐÃ SỬA: GỬI SHARED ATTRIBUTES LÊN THINGSBOARD) ---
+const updateDeviceConfig = async (req, res) => {
+    const { id } = req.params;
+    const configData = req.body; // Dữ liệu từ Frontend gửi lên: { wifi_ssid, frequency, ... }
+    
+    console.log(`\n>> [CONFIG] Đang cập nhật cấu hình cho Device ID Local: ${id}`);
+    console.log(">> Dữ liệu:", configData);
+
+    try {
+        // 1. Cập nhật vào Database Local trước (để lưu lại hiển thị cho lần sau)
+        await deviceService.updateDeviceInfo(id, configData);
+
+        // 2. Lấy thông tin thiết bị để lấy ID ThingsBoard
+        const device = await new Promise((resolve, reject) => {
+            db.get("SELECT * FROM devices WHERE id = ?", [id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!device) return res.status(404).json({ error: "Không tìm thấy thiết bị" });
+
+        // 3. Gửi Shared Attributes lên ThingsBoard
+        const jwtToken = await resolveTbToken(req);
+        
+        if (jwtToken && device.tb_device_id) {
+            try {
+                // Chỉ gửi những thông số kỹ thuật (Wifi, Frequency) lên Shared Attribute
+                // Không cần gửi alert_config (vì cái đó chỉ dùng cho Frontend cảnh báo màu)
+                const sharedAttributes = {};
+                if (configData.wifi_ssid !== undefined) sharedAttributes.wifi_ssid = configData.wifi_ssid;
+                if (configData.wifi_password !== undefined) sharedAttributes.wifi_password = configData.wifi_password;
+                if (configData.frequency !== undefined) sharedAttributes.frequency = parseInt(configData.frequency);
+
+                if (Object.keys(sharedAttributes).length > 0) {
+                    console.log(">> [THINGSBOARD] Đang đẩy Shared Attributes:", sharedAttributes);
+                    
+                    await axios.post(
+                        `${TB_SERVER_URL}/api/plugins/telemetry/DEVICE/${device.tb_device_id}/attributes/SHARED_SCOPE`,
+                        sharedAttributes,
+                        { headers: { 'X-Authorization': `Bearer ${jwtToken}` } }
+                    );
+                    console.log(">> [THÀNH CÔNG] Đã cập nhật lên ThingsBoard.");
+                }
+            } catch (tbError) {
+                console.error(">> [LỖI TB] Không đẩy được lên ThingsBoard:", tbError.message);
+                // Vẫn trả về success nhưng log lỗi để biết
+            }
+        } else {
+            console.warn(">> [SKIP] Không có Token hoặc TB_ID, chỉ lưu Local.");
+        }
+
+        res.json({ success: true, message: "Cập nhật thành công" });
+
+    } catch (error) {
+        console.error(">> [LỖI SERVER]:", error.message);
+        res.status(500).json({ error: error.message });
+    }
 };
 
 // --- 7. TELEMETRY (ĐÃ SỬA: TỰ ĐỘNG LẤY MỌI LOẠI DỮ LIỆU) ---

@@ -154,21 +154,66 @@ const DeviceDetailPage = () => {
     }));
   };
 
-  // Lưu cấu hình Server (Wifi/Chu kỳ)
-  const handleSaveServerConfig = async (e) => {
+  // --- 1. HÀM MỚI: CHỈ LƯU WIFI ---
+  const handleSaveWifiConfig = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
+        const token = localStorage.getItem('iot_token');
+        const tbToken = localStorage.getItem('tb_token');
+
+        // Chỉ đóng gói Wifi để gửi đi
+        const payload = {
+            wifi_ssid: config.wifi_ssid,
+            wifi_password: config.wifi_password
+        };
+
         const response = await fetch(`/api/devices/${id}/config`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(config)
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`, 
+                'x-tb-token': tbToken               
+            },
+            body: JSON.stringify(payload)
         });
+
         if (response.ok) {
-            alert("Đã lưu cấu hình thiết bị thành công!");
+            alert("Đã cập nhật Wifi thành công!");
             fetchDevice();
             setShowConfigModal(false);
-        } else { alert("Lỗi khi lưu cấu hình."); }
+        } else { alert("Lỗi khi lưu Wifi."); }
+    } catch (error) { alert("Lỗi kết nối server."); } finally { setIsSaving(false); }
+  };
+
+  // --- 2. HÀM MỚI: CHỈ LƯU CHU KỲ ---
+  const handleSaveFrequencyConfig = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+        const token = localStorage.getItem('iot_token');
+        const tbToken = localStorage.getItem('tb_token');
+
+        // Chỉ đóng gói Frequency để gửi đi
+        const payload = {
+            frequency: config.frequency
+        };
+
+        const response = await fetch(`/api/devices/${id}/config`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`, 
+                'x-tb-token': tbToken               
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert("Đã cập nhật chu kỳ gửi tin thành công!");
+            fetchDevice();
+            setShowConfigModal(false);
+        } else { alert("Lỗi khi lưu chu kỳ."); }
     } catch (error) { alert("Lỗi kết nối server."); } finally { setIsSaving(false); }
   };
 
@@ -177,12 +222,21 @@ const DeviceDetailPage = () => {
       e.preventDefault();
       setIsSaving(true);
       try {
+          // --- SỬA ĐOẠN NÀY: LẤY TOKEN VÀ GỬI KÈM HEADER ---
+          const token = localStorage.getItem('iot_token');
+          const tbToken = localStorage.getItem('tb_token');
+
           // Gọi API update config, nhưng chỉ gửi phần alert_config
           const response = await fetch(`/api/devices/${id}/config`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'x-tb-token': tbToken               // <--- QUAN TRỌNG
+              },
               body: JSON.stringify({ alert_config: alertConfig })
           });
+          // -------------------------------------------------
 
           if (response.ok) {
               alert("Đã cập nhật ngưỡng cảnh báo lên Server!");
@@ -370,9 +424,9 @@ const DeviceDetailPage = () => {
                 {/* Tab Content */}
                 <div className="modal-body-custom" style={{padding: '25px'}}>
                     
-                    {/* TAB 1: WIFI */}
+                    {/* TAB 1: WIFI - Sửa onSubmit thành handleSaveWifiConfig */}
                     {activeTab === 'wifi' && (
-                        <form onSubmit={handleSaveServerConfig}>
+                        <form onSubmit={handleSaveWifiConfig}>
                             <div className="form-group"><label>Tên Wifi (SSID)</label><input type="text" name="wifi_ssid" value={config.wifi_ssid} onChange={handleConfigChange} placeholder="Nhập tên Wifi..." required /></div>
                             <div className="form-group"><label>Mật khẩu Wifi</label><input type="text" name="wifi_password" value={config.wifi_password} onChange={handleConfigChange} placeholder="Nhập mật khẩu Wifi..." /></div>
                             <div style={{marginTop: '20px', textAlign: 'right'}}>
@@ -381,9 +435,9 @@ const DeviceDetailPage = () => {
                         </form>
                     )}
 
-                    {/* TAB 2: CHU KỲ */}
+                    {/* TAB 2: CHU KỲ - Sửa onSubmit thành handleSaveFrequencyConfig */}
                     {activeTab === 'frequency' && (
-                        <form onSubmit={handleSaveServerConfig}>
+                        <form onSubmit={handleSaveFrequencyConfig}>
                             <div className="form-group"><label>Tần suất gửi dữ liệu (Giây)</label><input type="number" name="frequency" value={config.frequency} onChange={handleConfigChange} min="1" required /><small style={{display: 'block', marginTop: '5px', color: '#666'}}>Thời gian ESP32 gửi dữ liệu lên Server.</small></div>
                             <div style={{marginTop: '20px', textAlign: 'right'}}>
                                 <button type="submit" className="btn-submit-custom" disabled={isSaving} style={{width: '100%', backgroundColor: '#17a2b8'}}>LƯU CHU KỲ</button>
