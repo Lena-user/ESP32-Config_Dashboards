@@ -131,8 +131,9 @@ const updateDeviceConfig = async (req, res) => {
                 const sharedAttributes = {};
 
                 // --- XỬ LÝ WIFI SSID ---
+                const rawssid = configData.wifi_ssid || configData.wifi_ssid;
                 if (configData.wifi_ssid !== undefined) {
-                    sharedAttributes.wifi_ssid = String(configData.wifi_ssid);
+                    sharedAttributes.wifi_ssid = '"' + String(rawssid) + '"';
                 }
 
                 // --- XỬ LÝ WIFI PASSWORD (QUAN TRỌNG) ---
